@@ -1,11 +1,12 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { FileTextIcon, PlusIcon, DownloadIcon, XIcon } from 'lucide-react';
+import { FileTextIcon, PlusIcon, DownloadIcon, XIcon, Trash2Icon } from 'lucide-react';
 import { toast } from 'sonner';
 import { getMedicalHistory, addCondition, addReport } from '../api/medicalHistory';
 
 export function MedicalHistory() {
   const [conditions, setConditions] = useState<any[]>([]);
   const [reports, setReports] = useState<any[]>([]);
+  const [selectedReport, setSelectedReport] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
   const [showAddCondition, setShowAddCondition] = useState(false);
   const [newCondition, setNewCondition] = useState({
@@ -21,7 +22,37 @@ export function MedicalHistory() {
       try {
         const data = await getMedicalHistory();
         setConditions(data.conditions || []);
-        setReports(data.reports || []);
+        const reportsResponse = await fetch(
+          "http://localhost:5000/api/reports",
+          {
+            headers: {
+              Authorization: `Bearer ${localStorage.getItem("token")}`
+            }
+          }
+        );
+
+        const reportsData = await reportsResponse.json();
+
+        const formattedReports = reportsData.map((report: any) => ({
+
+          _id: report._id,
+
+          name: report.filename,
+
+          date: new Date(report.uploadedAt).toLocaleDateString(),
+
+          type: "Blood Report Analysis",
+
+          image:
+            "https://images.unsplash.com/photo-1586281380349-632531db7ed4?w=100&h=100&fit=crop",
+
+          analysis: report.analysis,
+
+          parameters: report.parameters
+
+        }));
+
+        setReports(formattedReports);
       } catch (err) {
         toast.error('Failed to load medical history');
       } finally {
@@ -31,29 +62,70 @@ export function MedicalHistory() {
     fetchHistory();
   }, []);
 
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      const newReport = {
-        name: file.name,
-        date: new Date().toLocaleDateString('en-US', {
-          month: 'short',
-          day: 'numeric',
-          year: 'numeric'
-        }),
-        type: 'Uploaded Document',
-        image: 'https://images.unsplash.com/photo-1586281380349-632531db7ed4?w=100&h=100&fit=crop'
+  const handleFileChange = async (
+        e: React.ChangeEvent<HTMLInputElement>
+      ) => {
+
+        const file = e.target.files?.[0];
+
+        if (!file) return;
+
+        try {
+
+          const formData = new FormData();
+
+          formData.append("report", file);
+
+          const response = await fetch(
+            "http://localhost:5000/api/reports/analyze-report",
+            {
+              method: "POST",
+
+              headers: {
+                Authorization: `Bearer ${localStorage.getItem("token")}`
+              },
+
+              body: formData
+            }
+          );
+
+          const data = await response.json();
+
+          const savedReport = data.report;
+
+          const formattedReport = {
+
+            _id: savedReport._id,
+
+            name: savedReport.filename,
+
+            date: new Date(savedReport.uploadedAt).toLocaleDateString(),
+
+            type: "Blood Report Analysis",
+
+            image:
+              "https://images.unsplash.com/photo-1586281380349-632531db7ed4?w=100&h=100&fit=crop",
+
+            analysis: savedReport.analysis,
+
+            parameters: savedReport.parameters
+          };
+
+          setReports((prev) => [formattedReport, ...prev]);
+
+          toast.success("Report analyzed successfully!");
+
+        } catch (err) {
+
+          console.log(err);
+
+          toast.error("Failed to analyze report");
+        }
+
+        if (fileInputRef.current) {
+          fileInputRef.current.value = "";
+        }
       };
-      try {
-        const updated = await addReport(newReport);
-        setReports(updated.reports);
-        toast.success('Report uploaded successfully!');
-      } catch (err) {
-        toast.error('Failed to upload report');
-      }
-      if (fileInputRef.current) fileInputRef.current.value = '';
-    }
-  };
 
   const handleAddCondition = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -80,6 +152,37 @@ export function MedicalHistory() {
     toast.info(`Downloading ${reportName}...`);
   };
 
+  const handleDeleteReport = async (reportId: string) => {
+
+    try {
+
+      const response = await fetch(
+        `http://localhost:5000/api/reports/${reportId}`,
+        {
+          method: "DELETE",
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("token")}`
+          }
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error("Delete failed");
+      }
+
+      setReports((prev) =>
+        prev.filter((report) => report._id !== reportId)
+      );
+
+      toast.success("Report deleted successfully!");
+
+    } catch (err) {
+
+      console.log(err);
+
+      toast.error("Failed to delete report");
+    }
+  };
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -191,27 +294,172 @@ export function MedicalHistory() {
 
           <div className="space-y-3">
             {reports.length === 0 ? (
-              <div className="text-center py-8 text-gray-400">No reports uploaded yet</div>
+
+              <div className="text-center py-8 text-gray-400">
+                No reports uploaded yet
+              </div>
+
             ) : (
+
               reports.map((report, index) => (
-                <div key={index} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
-                  <div className="flex items-center gap-3">
-                    <img
-                      src={report.image}
-                      alt={report.name}
-                      className="w-12 h-12 rounded-lg object-cover" />
-                    <div>
-                      <p className="font-semibold text-gray-900">{report.name}</p>
-                      <p className="text-sm text-gray-600">{report.type} • {report.date}</p>
+
+                <div
+                  key={index}
+                  onClick={() => setSelectedReport(report)}
+                  className="p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer"
+                >
+
+                  <div className="flex items-start justify-between">
+
+                    <div className="flex items-start gap-3">
+
+                      <img
+                        src={report.image}
+                        alt={report.name}
+                        className="w-12 h-12 rounded-lg object-cover"
+                      />
+
+                      <div>
+
+                        <p className="font-semibold text-gray-900">
+                          {report.name}
+                        </p>
+
+                        <p className="text-sm text-gray-600">
+                          {report.type} • {report.date}
+                        </p>
+
+                        {/* Findings */}
+                        {report.analysis?.findings?.length > 0 && (
+
+                          <div className="mt-3">
+
+                            <div className="text-xs font-semibold text-gray-700">
+                              Findings
+                            </div>
+
+                            <ul className="list-disc ml-5 mt-1 text-xs text-red-600">
+
+                              {report.analysis.findings.map(
+                                (finding: string, idx: number) => (
+
+                                  <li key={idx}>
+                                    {finding}
+                                  </li>
+
+                                )
+                              )}
+
+                            </ul>
+
+                          </div>
+
+                        )}
+
+                        {/* Symptoms */}
+                        {report.analysis?.symptoms?.length > 0 && (
+
+                          <div className="mt-3">
+
+                            <div className="text-xs font-semibold text-gray-700">
+                              Symptoms
+                            </div>
+
+                            <ul className="list-disc ml-5 mt-1 text-xs text-orange-600">
+
+                              {report.analysis.symptoms.map(
+                                (symptom: string, idx: number) => (
+
+                                  <li key={idx}>
+                                    {symptom}
+                                  </li>
+
+                                )
+                              )}
+
+                            </ul>
+
+                          </div>
+
+                        )}
+
+                        {/* Parameters */}
+                        {report.parameters && (
+
+                          <div className="mt-3">
+
+                            <div className="text-xs font-semibold text-gray-700 mb-1">
+                              Parameters
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-2 text-xs">
+
+                              {Object.entries(report.parameters).map(
+                                ([key, value], idx) => (
+
+                                  <div
+                                    key={idx}
+                                    className="bg-white border border-gray-200 rounded-md px-2 py-1"
+                                  >
+
+                                    <span className="font-medium text-gray-700">
+                                      {key}
+                                    </span>
+
+                                    <span className="text-blue-600 ml-1">
+                                      {String(value)}
+                                    </span>
+
+                                  </div>
+
+                                )
+                              )}
+
+                            </div>
+
+                          </div>
+
+                        )}
+
+                        {/* Disclaimer */}
+                        <div className="mt-3 text-[11px] text-gray-500 italic">
+                          This is not a diagnosis. Please consult a physician.
+                        </div>
+
+                      </div>
+
                     </div>
+
+                    <div className="flex flex-col gap-2">
+
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDownload(report.name);
+                        }}
+                        className="p-2 hover:bg-gray-200 rounded-lg transition-colors"
+                      >
+                        <DownloadIcon className="w-5 h-5 text-gray-600" />
+                      </button>
+
+                      <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDeleteReport(report._id);
+                      }}
+                        className="p-2 hover:bg-red-100 rounded-lg transition-colors"
+                      >
+                        <Trash2Icon className="w-5 h-5 text-red-500" />
+                      </button>
+
+                    </div>
+
                   </div>
-                  <button
-                    onClick={() => handleDownload(report.name)}
-                    className="p-2 hover:bg-gray-200 rounded-lg transition-colors">
-                    <DownloadIcon className="w-5 h-5 text-gray-600" />
-                  </button>
+
                 </div>
+
               ))
+
             )}
           </div>
         </div>
@@ -248,6 +496,136 @@ export function MedicalHistory() {
           </div>
         </div>
       </div>
+      {/* REPORT DETAILS MODAL */}
+    {selectedReport && (
+
+      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+
+        <div className="bg-white w-full max-w-2xl rounded-xl p-6 relative shadow-2xl max-h-[90vh] overflow-y-auto">
+
+          {/* Close Button */}
+          <button
+            onClick={() => setSelectedReport(null)}
+            className="absolute top-4 right-4 p-2 hover:bg-gray-100 rounded-lg"
+          >
+            <XIcon className="w-5 h-5 text-gray-600" />
+          </button>
+
+          {/* Header */}
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">
+            {selectedReport.name}
+          </h2>
+
+          <p className="text-sm text-gray-500 mb-6">
+            {selectedReport.type} • {selectedReport.date}
+          </p>
+
+          {/* Parameters */}
+          {selectedReport.parameters && (
+
+            <div className="mb-6">
+
+              <h3 className="text-lg font-semibold text-gray-900 mb-3">
+                Parameters
+              </h3>
+
+              <div className="grid grid-cols-2 gap-3">
+
+                {Object.entries(selectedReport.parameters).map(
+                  ([key, value], idx) => (
+
+                    <div
+                      key={idx}
+                      className="border border-gray-200 rounded-lg p-3 bg-gray-50"
+                    >
+
+                      <div className="text-sm font-medium text-gray-700">
+                        {key}
+                      </div>
+
+                      <div className="text-lg font-bold text-blue-600">
+                        {String(value)}
+                      </div>
+
+                    </div>
+
+                  )
+                )}
+
+              </div>
+
+            </div>
+
+          )}
+
+          {/* Findings */}
+          {selectedReport.analysis?.findings?.length > 0 && (
+
+            <div className="mb-6">
+
+              <h3 className="text-lg font-semibold text-gray-900 mb-3">
+                Findings
+              </h3>
+
+              <ul className="list-disc ml-6 text-red-600 space-y-1">
+
+                {selectedReport.analysis.findings.map(
+                  (finding: string, idx: number) => (
+
+                    <li key={idx}>
+                      {finding}
+                    </li>
+
+                  )
+                )}
+
+              </ul>
+
+            </div>
+
+          )}
+
+          {/* Symptoms */}
+          {selectedReport.analysis?.symptoms?.length > 0 && (
+
+            <div className="mb-6">
+
+              <h3 className="text-lg font-semibold text-gray-900 mb-3">
+                Symptoms
+              </h3>
+
+              <ul className="list-disc ml-6 text-orange-600 space-y-1">
+
+                {selectedReport.analysis.symptoms.map(
+                  (symptom: string, idx: number) => (
+
+                    <li key={idx}>
+                      {symptom}
+                    </li>
+
+                  )
+                )}
+
+              </ul>
+
+            </div>
+
+          )}
+
+          {/* Disclaimer */}
+          <div className="mt-8 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+
+            <p className="text-sm text-yellow-800">
+              This is not a diagnosis. Please consult a physician for confirmation and treatment.
+            </p>
+
+          </div>
+
+        </div>
+
+      </div>
+
+    )}
     </div>
   );
 }

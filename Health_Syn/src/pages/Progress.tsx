@@ -97,33 +97,41 @@ export function Progress() {
   };
 
   // Build chart data from real vitals history
-  const weightData = vitalsHistory.length > 0
-    ? vitalsHistory
-        .filter(v => v.weight)
-        .map(v => ({
-          date: new Date(v.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-          weight: v.weight
-        }))
+  const weightEntries = vitalsHistory.filter(v => v.weight);
+
+  const weightData = weightEntries.length > 0
+    ? weightEntries.map(v => ({
+        date: new Date(v.date).toLocaleDateString('en-US', {
+          month: 'short',
+          day: 'numeric'
+        }),
+        weight: v.weight
+      }))
     : fallbackWeight;
 
-  const activityData = vitalsHistory.length > 0
-    ? vitalsHistory
-        .filter(v => v.steps)
-        .map(v => ({
-          day: new Date(v.date).toLocaleDateString('en-US', { weekday: 'short' }),
-          steps: v.steps
-        }))
+  const activityEntries = vitalsHistory.filter(v => v.steps);
+
+  const activityData = activityEntries.length > 0
+    ? activityEntries.map(v => ({
+        day: new Date(v.date).toLocaleDateString('en-US', {
+          weekday: 'short'
+        }),
+        steps: v.steps
+      }))
     : fallbackActivity;
 
-  const calorieData = vitalsHistory.length > 0
-    ? vitalsHistory
-        .filter(v => v.calories)
-        .map(v => ({
-          day: new Date(v.date).toLocaleDateString('en-US', { weekday: 'short' }),
-          intake: v.calories,
-          burned: Math.round(v.calories * 1.1)
-        }))
+  const calorieEntries = vitalsHistory.filter(v => v.calories);
+
+  const calorieData = calorieEntries.length > 0
+    ? calorieEntries.map(v => ({
+        day: new Date(v.date).toLocaleDateString('en-US', {
+          weekday: 'short'
+        }),
+        intake: v.calories,
+        burned: Math.round(v.calories * 1.1)
+      }))
     : fallbackCalories;
+
 
   // Latest vitals for summary
   const latest = vitalsHistory[vitalsHistory.length - 1];

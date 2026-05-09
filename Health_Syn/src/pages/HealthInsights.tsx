@@ -34,19 +34,50 @@ export function HealthInsights() {
   }, []);
 
   const handleGetInsights = async () => {
+
     if (!symptom.trim()) {
+
       toast.error('Please describe your symptoms first');
+
       return;
     }
-    setAnalyzing(true);
-    // Simulate AI analysis (replace with real AI API later)
-    setTimeout(() => {
-      setPrediction(
-        'Based on your symptoms, you may be experiencing seasonal allergies. Consider consulting with your doctor if symptoms persist.'
+
+    try {
+
+      setAnalyzing(true);
+
+      const response = await fetch(
+        "http://localhost:5000/api/ai/symptom-analysis",
+        {
+          method: "POST",
+
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${localStorage.getItem("token")}`
+          },
+
+          body: JSON.stringify({
+            symptom
+          })
+        }
       );
-      toast.success('Analysis complete');
+
+      const data = await response.json();
+
+      setPrediction(data.analysis);
+
+      toast.success("Analysis complete");
+
+    } catch (err) {
+
+      console.log(err);
+
+      toast.error("AI analysis failed");
+
+    } finally {
+
       setAnalyzing(false);
-    }, 1500);
+    }
   };
 
   const toggleMedicationStatus = async (med: any) => {
@@ -125,7 +156,9 @@ export function HealthInsights() {
                   <AlertCircleIcon className="w-5 h-5 text-emerald-600 mt-0.5 flex-shrink-0" />
                   <div>
                     <p className="font-semibold text-emerald-900 mb-1">AI Analysis</p>
-                    <p className="text-sm text-emerald-800">{prediction}</p>
+                    <div className="text-sm text-emerald-800 whitespace-pre-line leading-7">
+                      {prediction}
+                    </div>
                   </div>
                 </div>
               </div>
