@@ -7,8 +7,9 @@ import {
   PauseIcon,
   SquareIcon,
   XIcon,
+  Volume2Icon,
+  VolumeXIcon,
 } from "lucide-react";
-
 import { toast } from "sonner";
 
 import { getExercises, addExercise, updateExercise } from "../api/exercise";
@@ -61,7 +62,9 @@ export function Exercise() {
   const [timeLeft, setTimeLeft] = useState<number>(0);
 
   const [timerRunning, setTimerRunning] = useState(false);
+  const [isMuted, setIsMuted] = useState(false);
 
+  const [audio] = useState<HTMLAudioElement>(new Audio("/music/JK.mp3"));
   const [showCreateRoutine, setShowCreateRoutine] = useState(false);
 
   const [loading, setLoading] = useState(true);
@@ -100,12 +103,22 @@ export function Exercise() {
     fetchExercises();
   }, []);
 
+  useEffect(() => {
+    audio.src = "/music/JK.mp3";
+    audio.load();
+    audio.loop = true;
+    audio.volume = 0.5;
+    return () => {
+      audio.pause();
+      audio.currentTime = 0;
+      audio.src = "";
+    };
+  }, [audio]);
   // -----------------------------
   // TIMER EFFECT
   // -----------------------------
   useEffect(() => {
-    let interval: NodeJS.Timeout;
-
+    let interval: ReturnType<typeof setInterval>;
     if (timerRunning && timeLeft > 0) {
       interval = setInterval(() => {
         setTimeLeft((prev) => prev - 1);
@@ -113,6 +126,9 @@ export function Exercise() {
     }
 
     if (timeLeft === 0 && timerRunning) {
+      audio.pause();
+
+      audio.currentTime = 0;
       setTimerRunning(false);
 
       setActiveWorkout(null);
@@ -120,9 +136,12 @@ export function Exercise() {
       toast.success("Workout completed!");
     }
 
-    return () => clearInterval(interval);
-  }, [timerRunning, timeLeft]);
-
+    return () => {
+      if (interval) {
+        clearInterval(interval);
+      }
+    };
+  }, [timerRunning, timeLeft, audio]);
   // -----------------------------
   // CONVERT DURATION
   // -----------------------------
@@ -150,6 +169,9 @@ export function Exercise() {
   // -----------------------------
   const toggleWorkout = async (exercise: ExerciseType) => {
     if (activeWorkout === exercise._id) {
+      audio.pause();
+
+      audio.currentTime = 0;
       setActiveWorkout(null);
 
       setTimerRunning(false);
@@ -173,7 +195,12 @@ export function Exercise() {
       setTimeLeft(seconds);
 
       setTimerRunning(true);
-
+      audio.pause();
+      audio.currentTime = 0;
+      audio.currentTime = 0;
+      audio.play().catch((err) => {
+        console.log("Audio error:", err);
+      });
       toast.info(`Started ${exercise.name}`);
     }
   };
@@ -184,12 +211,27 @@ export function Exercise() {
     if (timerRunning) {
       setTimerRunning(false);
 
+      audio.pause();
+
       toast.info("Workout paused");
     } else {
       setTimerRunning(true);
 
+      audio.currentTime = 0;
+
+      audio.play().catch((err) => {
+        console.log("Audio error:", err);
+      });
       toast.success("Workout resumed");
     }
+  };
+
+  const toggleMute = () => {
+    audio.muted = !isMuted;
+
+    setIsMuted(!isMuted);
+
+    toast.info(isMuted ? "Sound unmuted" : "Sound muted");
   };
 
   // -----------------------------
@@ -299,7 +341,7 @@ export function Exercise() {
                   className="w-full px-3 py-2 bg-white/20 border border-white/30 rounded-md text-white placeholder-emerald-100 focus:outline-none focus:ring-2 focus:ring-white"
                 />
 
-                <div className="flex gap-3">
+                <div className="flex flex-wrap gap-3">
                   <input
                     type="text"
                     placeholder="Duration (e.g. 45 min)"
@@ -397,7 +439,7 @@ export function Exercise() {
                 </div>
               </div>
 
-              <div className="flex gap-3">
+              <div className="flex flex-wrap gap-3">
                 {/* START / STOP BUTTON */}
                 <button
                   onClick={() => toggleWorkout(exercise)}
@@ -422,20 +464,35 @@ export function Exercise() {
 
                 {/* PAUSE BUTTON */}
                 {activeWorkout === exercise._id && (
-                  <button
-                    onClick={togglePause}
-                    className={`px-4 py-3 rounded-lg font-semibold transition-colors ${
-                      timerRunning
-                        ? "bg-yellow-100 text-yellow-700 hover:bg-yellow-200"
-                        : "bg-blue-100 text-blue-700 hover:bg-blue-200"
-                    }`}
-                  >
-                    {timerRunning ? (
-                      <PauseIcon className="w-5 h-5" />
-                    ) : (
-                      <PlayIcon className="w-5 h-5" />
-                    )}
-                  </button>
+                  <>
+                    {/* MUTE BUTTON */}
+                    <button
+                      onClick={toggleMute}
+                      className="px-4 py-3 rounded-lg font-semibold bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors"
+                    >
+                      {isMuted ? (
+                        <VolumeXIcon className="w-5 h-5" />
+                      ) : (
+                        <Volume2Icon className="w-5 h-5" />
+                      )}
+                    </button>
+
+                    {/* PAUSE BUTTON */}
+                    <button
+                      onClick={togglePause}
+                      className={`px-4 py-3 rounded-lg font-semibold transition-colors ${
+                        timerRunning
+                          ? "bg-yellow-100 text-yellow-700 hover:bg-yellow-200"
+                          : "bg-blue-100 text-blue-700 hover:bg-blue-200"
+                      }`}
+                    >
+                      {timerRunning ? (
+                        <PauseIcon className="w-5 h-5" />
+                      ) : (
+                        <PlayIcon className="w-5 h-5" />
+                      )}
+                    </button>
+                  </>
                 )}
               </div>
             </div>
