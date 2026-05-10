@@ -1,24 +1,40 @@
-import React from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { Layout } from './components/Layout';
-import { Login } from './pages/Login';
-import { SignUp } from './pages/SignUp';
-import { Dashboard } from './pages/Dashboard';
-import { HealthInsights } from './pages/HealthInsights';
-import { MedicalHistory } from './pages/MedicalHistory';
-import { Progress } from './pages/Progress';
-import { Profile } from './pages/Profile';
-import { DietPlan } from './pages/DietPlan';
-import { Exercise } from './pages/Exercise';
-import { Toaster } from 'sonner';
+import React from "react";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+
+import { Layout } from "./components/Layout";
+import { ProtectedRoute } from "./components/ProtectedRoute";
+
+import { Login } from "./pages/Login";
+import { SignUp } from "./pages/SignUp";
+import { Dashboard } from "./pages/Dashboard";
+import { HealthInsights } from "./pages/HealthInsights";
+import { MedicalHistory } from "./pages/MedicalHistory";
+import { Progress } from "./pages/Progress";
+import { Profile } from "./pages/Profile";
+import { DietPlan } from "./pages/DietPlan";
+import { Exercise } from "./pages/Exercise";
+
+import { Toaster } from "sonner";
+
 export function App() {
   return (
     <BrowserRouter>
       <Toaster position="top-right" />
+
       <Routes>
+        {/* Public Routes */}
         <Route path="/login" element={<Login />} />
         <Route path="/signup" element={<SignUp />} />
-        <Route path="/" element={<Layout />}>
+
+        {/* Protected Routes */}
+        <Route
+          path="/"
+          element={
+            <ProtectedRoute>
+              <Layout />
+            </ProtectedRoute>
+          }
+        >
           <Route index element={<Dashboard />} />
           <Route path="health-insights" element={<HealthInsights />} />
           <Route path="medical-history" element={<MedicalHistory />} />
@@ -27,8 +43,9 @@ export function App() {
           <Route path="diet-plan" element={<DietPlan />} />
           <Route path="exercise" element={<Exercise />} />
         </Route>
+
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
-    </BrowserRouter>);
-
+    </BrowserRouter>
+  );
 }
