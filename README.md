@@ -5,7 +5,7 @@ HealthSync is a full-stack AI-powered healthcare management platform built using
 The platform enables users to:
 
 * monitor health vitals,
-* track daily wellness progress,
+* track daily wellness progress
 * manage medications,
 * upload and analyze blood reports,
 * receive AI-powered symptom insights,
